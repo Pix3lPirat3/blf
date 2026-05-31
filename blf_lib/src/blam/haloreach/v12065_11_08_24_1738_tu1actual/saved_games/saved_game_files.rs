@@ -8,7 +8,6 @@ use crate::types::bool::Bool;
 use crate::types::u64::Unsigned64;
 use blf_lib::types::array::StaticArray;
 use blf_lib_derivable::result::BLFLibResult;
-use crate::types::time::filetime;
 use serde_hex::{SerHex, StrictCap};
 use crate::io::bitstream::c_bitstream_writer;
 use crate::OPTION_TO_RESULT;
@@ -136,6 +135,29 @@ pub struct c_content_item_metadata {
     #[bw(if(general.game_mode != 1 && general.game_mode != 2))]
     #[serde(skip_serializing,skip_deserializing)]
     pub pad3: StaticArray<u8, 16>,
+
+    #[br(ignore)]
+    #[bw(ignore)]
+    #[serde(default, skip_serializing_if = "Option::is_none", skip_deserializing)]
+    pub raw_creator_name_bytes: Option<Vec<u8>>,
+
+    #[br(ignore)]
+    #[bw(ignore)]
+    #[serde(default, skip_serializing_if = "Option::is_none", skip_deserializing)]
+    pub raw_modifier_name_bytes: Option<Vec<u8>>,
+
+    /// Raw u16 wchars for `name` field, excluding the trailing NUL.
+    /// Preserves lone surrogate halves and embedded NULs that
+    /// `U16CString::from_str` strips on round-trip.
+    #[br(ignore)]
+    #[bw(ignore)]
+    #[serde(default, skip_serializing_if = "Option::is_none", skip_deserializing)]
+    pub raw_name_wchars: Option<Vec<u16>>,
+
+    #[br(ignore)]
+    #[bw(ignore)]
+    #[serde(default, skip_serializing_if = "Option::is_none", skip_deserializing)]
+    pub raw_description_wchars: Option<Vec<u16>>,
 }
 
 impl c_content_item_metadata {
@@ -153,14 +175,26 @@ impl c_content_item_metadata {
         self.display.megalo_category_index = bitstream.read_signed_integer("megalo-category-index", 8)?;
         self.creation_history.timestamp = bitstream.read_qword(64)?;
         self.creation_history.xuid = bitstream.read_qword(64)?;
-        self.creation_history.name = StaticString::from_string(bitstream.read_string_extended_ascii(16)?)?;
+        let raw_creator = bitstream.read_string_extended_ascii_raw(16).unwrap_or_default();
+        let creator_str: String = raw_creator.iter().map(|&b| b as char).collect();
+        self.creation_history.name = StaticString::from_string_trimmed(creator_str);
+        self.raw_creator_name_bytes = Some(raw_creator);
         self.creation_history.is_online = bitstream.read_bool("author-flags")?;
         self.modification_history.timestamp = bitstream.read_qword(64)?;
         self.modification_history.xuid = bitstream.read_qword(64)?;
-        self.modification_history.name = StaticString::from_string(bitstream.read_string_extended_ascii(16)?)?;
+        let raw_modifier = bitstream.read_string_extended_ascii_raw(16).unwrap_or_default();
+        let modifier_str: String = raw_modifier.iter().map(|&b| b as char).collect();
+        self.modification_history.name = StaticString::from_string_trimmed(modifier_str);
+        self.raw_modifier_name_bytes = Some(raw_modifier);
         self.modification_history.is_online = bitstream.read_bool("author-flags")?;
-        self.name = StaticWcharString::from_string(bitstream.read_string_wchar(128)?)?;
-        self.description = StaticWcharString::from_string(bitstream.read_string_wchar(128)?)?;
+        let raw_name_w = bitstream.read_string_wchar_raw(128)?;
+        let raw_desc_w = bitstream.read_string_wchar_raw(128)?;
+        let name_str = String::from_utf16_lossy(&raw_name_w);
+        let desc_str = String::from_utf16_lossy(&raw_desc_w);
+        self.name = StaticWcharString::from_string_trimmed(name_str)?;
+        self.description = StaticWcharString::from_string_trimmed(desc_str)?;
+        self.raw_name_wchars = Some(raw_name_w);
+        self.raw_description_wchars = Some(raw_desc_w);
 
         match self.general.file_type {
             3 | 4 => {
@@ -223,14 +257,30 @@ impl c_content_item_metadata {
         bitstream.write_signed_integer(self.display.megalo_category_index, 8)?;
         bitstream.write_qword(self.creation_history.timestamp, 64)?;
         bitstream.write_qword(self.creation_history.xuid, 64)?;
-        bitstream.write_string_extended_ascii(&self.creation_history.name.get_string()?, 16)?;
+        if let Some(raw) = &self.raw_creator_name_bytes {
+            bitstream.write_string_extended_ascii_raw(raw)?;
+        } else {
+            bitstream.write_string_extended_ascii(&self.creation_history.name.get_string()?, 16)?;
+        }
         bitstream.write_bool(self.creation_history.is_online)?;
         bitstream.write_qword(self.modification_history.timestamp, 64)?;
         bitstream.write_qword(self.modification_history.xuid, 64)?;
-        bitstream.write_string_extended_ascii(&self.modification_history.name.get_string()?, 16)?;
+        if let Some(raw) = &self.raw_modifier_name_bytes {
+            bitstream.write_string_extended_ascii_raw(raw)?;
+        } else {
+            bitstream.write_string_extended_ascii(&self.modification_history.name.get_string()?, 16)?;
+        }
         bitstream.write_bool(self.modification_history.is_online)?;
-        bitstream.write_string_wchar(&self.name.get_string(), 128)?;
-        bitstream.write_string_wchar(&self.description.get_string(), 128)?;
+        if let Some(raw) = &self.raw_name_wchars {
+            bitstream.write_string_wchar_raw(raw)?;
+        } else {
+            bitstream.write_string_wchar(&self.name.get_string(), 128)?;
+        }
+        if let Some(raw) = &self.raw_description_wchars {
+            bitstream.write_string_wchar_raw(raw)?;
+        } else {
+            bitstream.write_string_wchar(&self.description.get_string(), 128)?;
+        }
 
         match self.general.file_type {
             3 | 4 => {

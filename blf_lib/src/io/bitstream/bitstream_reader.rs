@@ -4,8 +4,7 @@ use std::fmt::{Debug, Display};
 use std::io::Cursor;
 use binrw::BinRead;
 use num_traits::FromPrimitive;
-use widestring::U16CString;
-use blf_lib::blam::common::math::real_math::{assert_valid_real_normal3d, cross_product3d, dot_product3d, k_real_epsilon, global_forward3d, global_left3d, global_up3d, normalize3d, valid_real_vector3d_axes3, arctangent, k_pi, rotate_vector_about_axis, valid_real_vector3d_axes2};
+use blf_lib::blam::common::math::real_math::{assert_valid_real_normal3d, cross_product3d, dot_product3d, k_real_epsilon, global_forward3d, global_left3d, normalize3d, valid_real_vector3d_axes3, arctangent, k_pi, rotate_vector_about_axis, valid_real_vector3d_axes2};
 use blf_lib::{assert_ok, OPTION_TO_RESULT};
 use blf_lib::io::bitstream::{e_bitstream_byte_fill_direction};
 use blf_lib_derivable::result::{BLFLibError, BLFLibResult};
@@ -48,7 +47,7 @@ pub struct c_bitstream_reader<'a>
 }
 
 impl<'a> c_bitstream_reader<'a> {
-    pub fn new(data: &[u8], byte_order: e_bitstream_byte_order) -> c_bitstream_reader {
+    pub fn new(data: &[u8], byte_order: e_bitstream_byte_order) -> c_bitstream_reader<'_> {
         let length = data.len();
         c_bitstream_reader {
             m_data: data,
@@ -65,7 +64,7 @@ impl<'a> c_bitstream_reader<'a> {
     }
 
     /// Use this when dealing with bitstream data from the Halo 3 Beta or prior.
-    pub fn new_with_legacy_settings(data: &[u8], byte_order: e_bitstream_byte_order) -> c_bitstream_reader {
+    pub fn new_with_legacy_settings(data: &[u8], byte_order: e_bitstream_byte_order) -> c_bitstream_reader<'_> {
         let length = data.len();
         c_bitstream_reader {
             m_data: data,
@@ -363,8 +362,8 @@ impl<'a> c_bitstream_reader<'a> {
         if self.read_unnamed_bool()? {
             Ok(-1)
         } else {
-            let value = self.read_unnamed_integer(size_in_bits)?;
-            assert_ok!(value < max as i32);
+            let value: i32 = self.read_unnamed_integer(size_in_bits)?;
+            if value >= max as i32 { return Ok((max as i32).saturating_sub(1)); }
             Ok(value)
         }
     }
@@ -535,17 +534,19 @@ impl<'a> c_bitstream_reader<'a> {
         assert_ok!(max_string_size > 0);
 
         let mut bytes = vec![0u8; max_string_size];
-
-        for i in 0..max_string_size {
-            let byte = self.read_unnamed_integer(8)?;
-            bytes[i] = byte;
-
-            if byte == 0 {
-                return Ok(String::from_utf8(bytes)?)
+        let mut consumed = 0usize;
+        loop {
+            if consumed >= (1usize << 20) {
+                return Err("Exceeded hard cap (1 MiB) reading utf8 string.".into());
             }
+            let byte: u8 = self.read_unnamed_integer(8)?;
+            if byte == 0 {
+                let kept = consumed.min(max_string_size);
+                return Ok(String::from_utf8_lossy(&bytes[..kept]).into_owned());
+            }
+            if consumed < max_string_size { bytes[consumed] = byte; }
+            consumed += 1;
         }
-
-        Err("Exceeded max string size reading utf8 string.".into())
     }
 
     pub fn read_string_extended_ascii(&mut self, max_string_size: usize) -> BLFLibResult<String> {
@@ -553,19 +554,83 @@ impl<'a> c_bitstream_reader<'a> {
         assert_ok!(max_string_size > 0);
 
         let mut bytes = vec![0u8; max_string_size];
-
-        for i in 0..max_string_size {
-            let byte = self.read_unnamed_integer(8)?;
-            bytes[i] = byte;
-
+        let mut consumed = 0usize;
+        loop {
+            if consumed >= (1usize << 20) {
+                return Err("Exceeded hard cap (1 MiB) reading extended-ascii string.".into());
+            }
+            let byte: u8 = self.read_unnamed_integer(8)?;
             if byte == 0 {
-                // manually parse the string because halo sometimes uses extended char sets.
-                let s: String = bytes.iter().map(|&b| b as char).collect();
+                let kept = consumed.min(max_string_size);
+                let s: String = bytes[..kept].iter().map(|&b| b as char).collect();
                 return Ok(s);
             }
+            if consumed < max_string_size { bytes[consumed] = byte; }
+            consumed += 1;
         }
+    }
 
-        Err("Exceeded max string size reading utf8 string.".into())
+    /// Round-trip-fidelity variant of `read_string_extended_ascii`. Consumes
+    /// bytes up to and including the NUL terminator (same wire consumption
+    /// as `read_string_extended_ascii`) but returns the RAW byte sequence
+    /// that preceded the NUL — no `b as char` re-encoding. The returned
+    /// Vec does NOT include the NUL terminator. Caller can detect truncation
+    /// via `bytes.len() > max_string_size` (we still consume the full
+    /// on-stream content for alignment, but cap the returned buffer at the
+    /// 1 MiB hard cap).
+    pub fn read_string_extended_ascii_raw(&mut self, max_string_size: usize) -> BLFLibResult<Vec<u8>> {
+        assert_ok!(self.reading());
+        assert_ok!(max_string_size > 0);
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(max_string_size);
+        let mut consumed = 0usize;
+        loop {
+            if consumed >= (1usize << 20) {
+                return Err("Exceeded hard cap (1 MiB) reading extended-ascii string.".into());
+            }
+            let byte: u8 = self.read_unnamed_integer(8)?;
+            if byte == 0 {
+                return Ok(bytes);
+            }
+            bytes.push(byte);
+            consumed += 1;
+        }
+    }
+
+    /// Engine-equivalent of `bitread_ascii_zstring` (halo4.dll FUN_1800F5EB8 /
+    /// haloreach.dll FUN_1800DC574). Reads up to `max_string_size` bytes one
+    /// at a time. Stops EITHER on NUL terminator OR after exactly
+    /// `max_string_size` bytes — whichever comes first. Returns the captured
+    /// pre-NUL bytes (when NUL found) OR exactly `max_string_size` bytes
+    /// (when no NUL found within the cap).
+    ///
+    /// Unlike `read_string_extended_ascii_raw` (which keeps reading until NUL
+    /// even past max), this matches the on-wire byte consumption of the engine
+    /// EXACTLY:
+    ///   - NUL at index N (N < max): consume N+1 bytes, returned len = N
+    ///   - No NUL in `max_string_size` bytes: consume `max_string_size` bytes,
+    ///     returned len = `max_string_size`
+    ///
+    /// Caller can distinguish the two cases via `returned.len() < max_string_size`
+    /// (NUL was present) vs `== max_string_size` (no NUL — buffer full).
+    /// Critical for H4/H2A metadata fields where the on-wire creator/modifier
+    /// names are sometimes exactly `max` chars long with NO trailing NUL.
+    pub fn read_string_extended_ascii_raw_bounded(
+        &mut self,
+        max_string_size: usize,
+    ) -> BLFLibResult<Vec<u8>> {
+        assert_ok!(self.reading());
+        assert_ok!(max_string_size > 0);
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(max_string_size);
+        while bytes.len() < max_string_size {
+            let byte: u8 = self.read_unnamed_integer(8)?;
+            if byte == 0 {
+                return Ok(bytes);
+            }
+            bytes.push(byte);
+        }
+        Ok(bytes)
     }
 
     // differs from blam API
@@ -574,18 +639,72 @@ impl<'a> c_bitstream_reader<'a> {
         assert_ok!(max_string_size > 0);
 
         let mut characters = vec![0u16; max_string_size];
-
-        for i in 0..max_string_size {
-            let character = self.read_unnamed_integer(16)?;
-
-            if character == 0 {
-                return Ok(U16CString::from_vec(&mut characters[0..i]).map_err(|e|e.to_string())?.to_string().map_err(|e|e.to_string())?);
-            } else {
-                characters[i] = character;
+        let mut consumed = 0usize;
+        loop {
+            if consumed >= (1usize << 20) {
+                return Err("Exceeded hard cap (1 Mi wchars) reading wchar string.".into());
             }
+            let character: u16 = self.read_unnamed_integer(16)?;
+            if character == 0 {
+                let kept = consumed.min(max_string_size);
+                return Ok(String::from_utf16_lossy(&characters[0..kept]));
+            }
+            if consumed < max_string_size {
+                characters[consumed] = character;
+            }
+            consumed += 1;
         }
+    }
 
-        Err("Exceeded max string size reading wchar string.".into())
+    /// Round-trip-fidelity variant of `read_string_wchar`. Consumes u16
+    /// characters up to and including the NUL terminator, returning the
+    /// raw `Vec<u16>` of pre-NUL chars (NO `from_utf16_lossy` re-encoding).
+    /// Preserves lone surrogate halves and embedded NULs (well, until the
+    /// first NUL — the stream terminator) that the String-returning variant
+    /// loses on round-trip. Caller is expected to call this in place of
+    /// `read_string_wchar` for fields that need byte-identical round-trip
+    /// fidelity. Hard cap at 1 Mi wchars to defend truly broken streams.
+    pub fn read_string_wchar_raw(&mut self, max_string_size: usize) -> BLFLibResult<Vec<u16>> {
+        assert_ok!(self.reading());
+        assert_ok!(max_string_size > 0);
+
+        let mut characters: Vec<u16> = Vec::with_capacity(max_string_size);
+        let mut consumed = 0usize;
+        loop {
+            if consumed >= (1usize << 20) {
+                return Err("Exceeded hard cap (1 Mi wchars) reading wchar string.".into());
+            }
+            let character: u16 = self.read_unnamed_integer(16)?;
+            if character == 0 {
+                return Ok(characters);
+            }
+            characters.push(character);
+            consumed += 1;
+        }
+    }
+
+    /// Engine-equivalent of `bitread_utf16_zstring` (halo4.dll FUN_1800F5F70).
+    /// Reads up to `max_string_size` u16 characters one at a time. Stops
+    /// EITHER on NUL OR after exactly `max_string_size` u16s — whichever
+    /// comes first. Mirror of `read_string_extended_ascii_raw_bounded` for
+    /// wchar fields. Critical for H4/H2A metadata where wchar name/desc are
+    /// engine-bounded at 128 u16s each.
+    pub fn read_string_wchar_raw_bounded(
+        &mut self,
+        max_string_size: usize,
+    ) -> BLFLibResult<Vec<u16>> {
+        assert_ok!(self.reading());
+        assert_ok!(max_string_size > 0);
+
+        let mut characters: Vec<u16> = Vec::with_capacity(max_string_size);
+        while characters.len() < max_string_size {
+            let character: u16 = self.read_unnamed_integer(16)?;
+            if character == 0 {
+                return Ok(characters);
+            }
+            characters.push(character);
+        }
+        Ok(characters)
     }
 
     pub fn read_unit_vector(unit_vector: &mut real_vector3d, size_in_bits: u8) {
@@ -727,7 +846,6 @@ mod bitstream_reader_tests {
         assert_eq!(sut.read_unnamed_integer::<u32>(3).unwrap(), 0b001);
         assert_eq!(sut.read_unnamed_integer::<u32>(13).unwrap(), 310);
     }
-
 
     #[test]
     fn read_with_msb_to_lsb_byte_pack_direction() {

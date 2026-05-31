@@ -1,9 +1,7 @@
-use std::io::{Read, Seek, Write};
-use binrw::{binrw, BinRead, BinResult, BinWrite, Endian};
+use binrw::binrw;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
-use blf_lib::blam::common::memory::secure_signature::s_network_http_request_hash;
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
 use blf_lib_derivable::result::BLFLibResult;
 use blf_lib_derive::BlfChunk;

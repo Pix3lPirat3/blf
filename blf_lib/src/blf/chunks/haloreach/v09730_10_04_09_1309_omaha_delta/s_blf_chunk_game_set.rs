@@ -1,8 +1,6 @@
 use std::io::{Cursor, Read, Seek, Write};
 use binrw::{binrw, BinRead, BinResult, BinWrite, BinWriterExt, Endian};
-use flate2::{Compress, Compression};
 use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
 use serde::{Deserialize, Serialize};
 use blf_lib::blam::common::memory::secure_signature::s_network_http_request_hash;
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer, e_bitstream_byte_order};

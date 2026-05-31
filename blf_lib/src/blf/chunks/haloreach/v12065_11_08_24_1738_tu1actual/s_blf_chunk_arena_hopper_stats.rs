@@ -2,7 +2,6 @@ use binrw::binrw;
 use blf_lib::blf::chunks::BlfChunkHooks;
 use blf_lib::BlfChunk;
 use serde::{Deserialize, Serialize};
-use blf_lib::types::array::StaticArray;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 

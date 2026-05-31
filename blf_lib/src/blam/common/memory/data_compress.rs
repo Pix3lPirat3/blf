@@ -36,7 +36,7 @@ pub fn runtime_data_compress(
 ) -> BLFLibResult {
     let mut e = ZlibEncoder::new_with_compress(Vec::new(), Compress::new_with_window_bits(Compression::new(9), true, 15));
     e.write_all(source_buffer)?;
-    let mut compressed_data = e.finish()?;
+    let compressed_data = e.finish()?;
 
     let mut writer = Cursor::new(compressed_buffer);
     let decompressed_size = source_buffer.len() as u32;

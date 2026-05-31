@@ -6,15 +6,11 @@
 #![allow(dead_code)]
 
 use std::convert::Into;
-use std::error::Error;
 use binrw::{BinRead, BinWrite};
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::wasm_bindgen;
-use blf_lib::blam::common::math::integer_math::int32_point3d;
-use blf_lib::blam::common::math::unit_vector_quanitzation::get_unit_vector_encoding_constants;
-use blf_lib_derivable::result::BLFLibResult;
 use blf_lib_derive::TestSize;
 use crate::types::numbers::Float32;
 

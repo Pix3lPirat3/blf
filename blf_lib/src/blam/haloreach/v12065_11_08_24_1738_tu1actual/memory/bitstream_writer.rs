@@ -3,8 +3,6 @@ use blf_lib::blam::common::math::real_math::{assert_valid_real_normal3d, global_
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::math::real_math::{dequantize_unit_vector3d, quantize_real, quantize_real_fast};
 use blf_lib::io::bitstream::c_bitstream_writer;
 use blf_lib_derivable::result::BLFLibResult;
-use crate::blam::common::math::real_math::{cross_product3d, normalize3d};
-use crate::blam::common::math::unit_vector_quanitzation::get_unit_vector_encoding_constants;
 use crate::blam::haloreach::v12065_11_08_24_1738_tu1actual::math::real_math::quantize_unit_vector3d_fast;
 
 pub trait c_bitstream_writer_extensions {
@@ -19,7 +17,7 @@ pub trait c_bitstream_writer_extensions {
         exact_midpoint: bool,
         exact_endpoints: bool,
     ) -> BLFLibResult {
-        let mut writer = self.bitstream_writer();
+        let writer = self.bitstream_writer();
 
         let quantized_value = quantize_real(
             value.into(),
@@ -44,7 +42,7 @@ pub trait c_bitstream_writer_extensions {
         max_value: f32,
         size_in_bits: usize,
     ) -> BLFLibResult {
-        let mut writer = self.bitstream_writer();
+        let writer = self.bitstream_writer();
 
         let quantized_value = quantize_real_fast::<exact_midpoint, exact_endpoints>(
             value.into(),
@@ -88,6 +86,25 @@ pub trait c_bitstream_writer_extensions {
         let forward_angle = c_bitstream_writer::axes_to_angle_internal(forward, &dequantized_up)?;
         writer.write_quantized_real_fast::<false, false>(forward_angle, -k_pi, k_pi, forward_bits)?;
 
+        Ok(())
+    }
+
+    /// Round-trip-fidelity variant of `write_axes` that emits captured raw
+    /// bit fields verbatim instead of re-quantizing. Pair with
+    /// `read_axes_capture` to bypass quantize/dequantize drift. See
+    /// `simulation_write_position_with_raw` for the parallel position fix.
+    fn write_axes_with_raw<const forward_bits: usize, const up_bits: usize>(
+        &mut self,
+        up_is_global: bool,
+        raw_up_quantization: u32,
+        raw_forward_angle: u32,
+    ) -> BLFLibResult {
+        let writer = self.bitstream_writer();
+        writer.write_bool(up_is_global)?;
+        if !up_is_global {
+            writer.write_integer(raw_up_quantization, up_bits)?;
+        }
+        writer.write_integer(raw_forward_angle, forward_bits)?;
         Ok(())
     }
 }

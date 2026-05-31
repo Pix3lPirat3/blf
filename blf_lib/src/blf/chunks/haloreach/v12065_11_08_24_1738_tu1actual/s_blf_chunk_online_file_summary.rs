@@ -2,7 +2,6 @@ use binrw::{binrw, BinRead, BinWrite};
 use serde::{Deserialize, Serialize};
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
 use blf_lib_derive::BlfChunk;
-use crate::BINRW_ERROR;
 
 /// Matches `s_online_file_summary_listing_entry` in `blf.ts` (big-endian fields).
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Deserialize, BinRead, BinWrite)]

@@ -1,5 +1,5 @@
 use std::io::{Read, Seek, Write};
-use binrw::{binrw, BinRead, BinResult, BinWrite, BinWriterExt, Endian};
+use binrw::{BinRead, BinResult, BinWrite, BinWriterExt, Endian};
 use serde::{Deserialize, Serialize};
 use blf_lib::blam::common::memory::secure_signature::s_network_http_request_hash;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::saved_games::scenario_map_variant::c_map_variant;

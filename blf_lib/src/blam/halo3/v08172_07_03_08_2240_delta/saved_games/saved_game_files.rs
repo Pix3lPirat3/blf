@@ -2,14 +2,10 @@ use binrw::{BinRead, BinWrite};
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
-use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
 use crate::types::c_string::StaticString;
 use crate::types::c_string::StaticWcharString;
 use serde_hex::{SerHex,StrictCap};
-use wasm_bindgen::prelude::wasm_bindgen;
-use blf_lib_derivable::result::BLFLibResult;
 use blf_lib::types::time::time64_t;
-use blf_lib_derive::TestSize;
 use crate::types::bool::Bool;
 use crate::types::u64::Unsigned64;
 

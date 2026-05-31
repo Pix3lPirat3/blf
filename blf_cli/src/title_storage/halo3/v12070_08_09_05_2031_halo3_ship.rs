@@ -1673,7 +1673,8 @@ impl v12070_08_09_05_2031_halo3_ship {
                             BlfFileBuilder::new()
                                 .add_chunk(s_blf_chunk_start_of_file::default())
                                 .add_chunk(s_blf_chunk_packed_map_variant {
-                                    map_variant: map_variant_json
+                                    map_variant: map_variant_json,
+                                    ..Default::default()
                                 })
                                 .add_chunk(s_blf_chunk_end_of_file::default())
                                 .write_file(&map_variant_blf_path).unwrap();

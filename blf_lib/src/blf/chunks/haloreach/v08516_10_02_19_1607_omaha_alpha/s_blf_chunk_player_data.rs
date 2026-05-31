@@ -1,7 +1,6 @@
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::binrw;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
-use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use blf_lib::types::bool::Bool;
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;

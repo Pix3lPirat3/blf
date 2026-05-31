@@ -17,7 +17,6 @@ use blf_lib::blam::halo3::v10015_07_05_14_2217_delta::game::game_engine_vip::c_g
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
 use blf_lib::{BINRW_ERROR, OPTION_TO_RESULT};
 use blf_lib_derivable::result::BLFLibResult;
-use blf_lib_derive::TestSize;
 
 #[derive(BinRead, BinWrite, Serialize, Deserialize, Default, PartialEq, Debug, Copy, Clone, FromPrimitive, ToPrimitive)]
 #[brw(repr = u32)]

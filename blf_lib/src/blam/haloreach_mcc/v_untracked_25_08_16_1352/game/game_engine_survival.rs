@@ -75,7 +75,7 @@ impl c_game_engine_survival_variant {
         bitstream.write_integer(self.m_bonus_round_duration, 12)?;
         bitstream.write_integer(self.m_bonus_round_skull_flags, 18)?;
         self.m_bonus_round_properties.encode(bitstream)?;
-        if (self.m_encoding_version >= 2) {
+        if self.m_encoding_version >= 2  {
             bitstream.write_integer(self.m_additional_flags, 8)?;
         }
 
@@ -108,7 +108,7 @@ impl c_game_engine_survival_variant {
         self.m_bonus_round_duration = bitstream.read_integer("duration-seconds", 12)?;
         self.m_bonus_round_skull_flags = bitstream.read_integer("skull-flags", 18)?;
         self.m_bonus_round_properties.decode(bitstream)?;
-        if (self.m_encoding_version >= 2) {
+        if self.m_encoding_version >= 2  {
             self.m_additional_flags = bitstream.read_integer("additional-flags", 8)?;
         }
 

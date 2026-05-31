@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
-use blf_lib::TEST_BIT;
-use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::string_table::c_single_language_string_table;
 use blf_lib_derivable::result::BLFLibResult;
 use crate::types::array::StaticArray;
-use serde_hex::{SerHex,StrictCap};
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct c_loadout_traits {

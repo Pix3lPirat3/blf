@@ -4,7 +4,6 @@ use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_default::c_game_engine_base_variant;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_player_rating_parameters::s_game_engine_player_rating_parameters;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_survival::c_game_engine_survival_variant;
-use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_team::{c_game_engine_team_options_team, k_game_variant_team_count};
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_traits::s_player_trait_option;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::megalogamengine::megalogamengine_actions::c_action;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::megalogamengine::megalogamengine_conditions::c_condition;
@@ -17,7 +16,6 @@ use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::string_table
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::memory::bitstream_reader::c_bitstream_reader_extensions;
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::memory::bitstream_writer::c_bitstream_writer_extensions;
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
-use blf_lib::OPTION_TO_RESULT;
 use blf_lib::types::numbers::Float32;
 use blf_lib_derivable::result::{BLFLibError, BLFLibResult};
 use crate::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::megalogamengine::megalogamengine_map_permissions::c_megalogamengine_map_permissions;

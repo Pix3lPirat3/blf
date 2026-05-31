@@ -1,6 +1,5 @@
 use std::io::{Read, Seek, Write};
 use binrw::{binrw, BinRead, BinResult, BinWrite, Endian};
-use binrw::helpers::count;
 use serde::{Deserialize, Serialize};
 use blf_lib::types::c_string::StaticString;
 use blf_lib::types::time::filetime;

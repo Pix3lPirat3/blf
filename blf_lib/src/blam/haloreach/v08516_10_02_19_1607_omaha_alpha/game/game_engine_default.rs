@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use blf_lib::blam::haloreach::v08516_10_02_19_1607_omaha_alpha::game::game_engine_player_traits::c_player_traits;
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
-use blf_lib::{SET_BIT, TEST_BIT};
 use blf_lib::blam::haloreach::v08516_10_02_19_1607_omaha_alpha::game::game_engine_traits::c_game_engine_miscellaneous_options;
 use blf_lib::blam::haloreach::v09730_10_04_09_1309_omaha_delta::game::game_engine_team::c_game_engine_team_options;
 use blf_lib::blam::haloreach::v08516_10_02_19_1607_omaha_alpha::game::game_engine_traits::c_game_engine_respawn_options;

@@ -1,11 +1,10 @@
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::binrw;
 use blf_lib::blf::chunks::BlfChunkHooks;
 use blf_lib::BlfChunk;
 use serde::{Deserialize, Serialize};
 use blf_lib::types::array::StaticArray;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
-use crate::types::time::time64_t;
 
 #[binrw]
 #[derive(BlfChunk,PartialEq,Debug,Clone,Serialize,Deserialize,Default)]

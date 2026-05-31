@@ -28,7 +28,7 @@ macro_rules! bitfield {
 
             #[inline]
             pub fn from_raw(value: $ty) -> Self {
-                let mut i = 0;
+                let i = 0;
                 Self {
                     $(
                         $field: ((value >> i) & 1) != 0,

@@ -1,9 +1,7 @@
 use std::io::{Read, Seek, Write};
-use binrw::{binrw, BinRead, BinResult, BinWrite, BinWriterExt, Endian};
+use binrw::{BinRead, BinResult, BinWrite, BinWriterExt, Endian};
 use serde::{Deserialize, Serialize};
-use blf_lib::blam::common::memory::secure_signature::s_network_http_request_hash;
 use blf_lib::blam::haloreach::v09730_10_04_09_1309_omaha_delta::saved_games::scenario_map_variant::c_map_variant;
-use blf_lib::blf::get_buffer_hash;
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer, e_bitstream_byte_order};
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
 use blf_lib_derive::BlfChunk;

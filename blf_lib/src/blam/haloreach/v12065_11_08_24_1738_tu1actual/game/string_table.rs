@@ -34,6 +34,22 @@ pub struct c_single_language_string_table<
     const count_bit_length: usize,
 > {
     strings: Vec<String>,
+    #[serde(skip)]
+    raw_was_compressed: bool,
+    #[serde(skip)]
+    raw_buffer_size: u32,
+    #[serde(skip)]
+    raw_string_data_bytes: Vec<u8>,
+    /// Raw per-string `offset` values captured from the wire (one per string,
+    /// `offset_bit_length` bits each). Empty when constructed from scratch.
+    #[serde(skip)]
+    raw_string_offsets: Vec<u16>,
+    /// Raw per-string `exists` flag captured from the wire (one per string).
+    /// Decoder may have `exists=false` for some slots (then offset isn't read);
+    /// encoder must mirror exactly for byte-identical round-trip. Empty when
+    /// constructed from scratch (encoder falls back to writing `true` for all).
+    #[serde(skip)]
+    raw_string_exists: Vec<bool>,
 }
 
 impl<
@@ -58,24 +74,36 @@ c_single_language_string_table<
             return Ok(());
         }
 
-        let mut offsets = vec![0; string_count];
+        let mut offsets: Vec<u64> = vec![0u64; string_count];
+        self.raw_string_offsets = vec![0u16; string_count];
+        self.raw_string_exists = vec![false; string_count];
         for i in 0..string_count {
             if bitstream.read_bool("exists")? {
-                offsets[i] = bitstream.read_integer("offset", offset_bit_length)?;
+                self.raw_string_exists[i] = true;
+                let off: u16 = bitstream.read_integer("offset", offset_bit_length)?;
+                offsets[i] = off as u64;
+                self.raw_string_offsets[i] = off;
             }
         }
 
         let buffer_size: usize = bitstream.read_integer("size", buffer_size_bit_length)?;
+        self.raw_buffer_size = buffer_size as u32;
 
-        let string_data = if bitstream.read_bool("compressed")? {
-            let mut compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
+        let was_compressed: bool = bitstream.read_bool("compressed")?;
+        self.raw_was_compressed = was_compressed;
+
+        let string_data = if was_compressed {
+            let compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
             let compressed_data = bitstream.read_raw_data(compressed_length * 8)?;
+            self.raw_string_data_bytes = compressed_data.clone(); // capture verbatim for round-trip
             let mut decompressed_data = Vec::with_capacity(buffer_size);
 
             runtime_data_decompress(&compressed_data, &mut decompressed_data, bitstream.get_byte_order())?;
             decompressed_data
         } else {
-            bitstream.read_raw_data(buffer_size * 8)?
+            let raw = bitstream.read_raw_data(buffer_size * 8)?;
+            self.raw_string_data_bytes = raw.clone(); // capture verbatim for round-trip
+            raw
         };
 
         let mut string_reader = Cursor::new(string_data);
@@ -90,18 +118,43 @@ c_single_language_string_table<
     }
 
     pub fn encode(&self, bitstream: &mut c_bitstream_writer) -> BLFLibResult {
-        assert_ok!(self.strings.len() <= max_string_count);
+        let max_wire_count = (1u64 << count_bit_length) - 1;
+        assert_ok!((self.strings.len() as u64) <= max_wire_count);
         bitstream.write_integer(self.strings.len() as u32, count_bit_length)?;
 
         if self.strings.len() == 0 {
             return Ok(());
         }
 
-        let mut offset: u16 = 0;
-        for string in self.strings.iter() {
-            bitstream.write_bool(true)?;
-            bitstream.write_integer(offset, offset_bit_length)?;
-            offset += string.len() as u16 + 1;
+        let have_raw = !self.raw_string_offsets.is_empty()
+            && self.raw_string_offsets.len() == self.strings.len()
+            && self.raw_string_exists.len() == self.strings.len();
+        if have_raw {
+            for i in 0..self.strings.len() {
+                if self.raw_string_exists[i] {
+                    bitstream.write_bool(true)?;
+                    bitstream.write_integer(self.raw_string_offsets[i], offset_bit_length)?;
+                } else {
+                    bitstream.write_bool(false)?;
+                }
+            }
+        } else {
+            let mut offset: u16 = 0;
+            for string in self.strings.iter() {
+                bitstream.write_bool(true)?;
+                bitstream.write_integer(offset, offset_bit_length)?;
+                offset += string.len() as u16 + 1;
+            }
+        }
+
+        if !self.raw_string_data_bytes.is_empty() {
+            bitstream.write_integer(self.raw_buffer_size, buffer_size_bit_length)?;
+            bitstream.write_bool(self.raw_was_compressed)?;
+            if self.raw_was_compressed {
+                bitstream.write_integer(self.raw_string_data_bytes.len() as u32, buffer_size_bit_length)?;
+            }
+            bitstream.write_raw_data(self.raw_string_data_bytes.as_slice(), self.raw_string_data_bytes.len() * 8)?;
+            return Ok(());
         }
 
         let mut buffer = Vec::<u8>::new();
@@ -115,14 +168,13 @@ c_single_language_string_table<
         runtime_data_compress(&buffer, &mut compressed_buffer, bitstream.get_byte_order())?;
 
         bitstream.write_integer(buffer.len() as u32, buffer_size_bit_length)?;
-        bitstream.write_bool(true)?; // is compressed? always.
+        bitstream.write_bool(true)?; // is compressed? always (legacy path).
         bitstream.write_integer(compressed_buffer.len() as u32, buffer_size_bit_length)?;
         bitstream.write_raw_data(compressed_buffer.as_slice(), compressed_buffer.len() * 8)?;
 
         Ok(())
     }
 }
-
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct c_string_table<
@@ -133,7 +185,20 @@ pub struct c_string_table<
     const buffer_size_bit_length: usize,
     const count_bit_length: usize,
 > {
-    strings: StaticArray<Vec<Option<String>>, k_language_count>,
+    pub strings: StaticArray<Vec<Option<String>>, k_language_count>,
+    #[serde(skip)]
+    raw_was_compressed: bool,
+    #[serde(skip)]
+    raw_buffer_size: u32,
+    #[serde(skip)]
+    raw_string_data_bytes: Vec<u8>,
+    /// Raw per-(language, string) offsets captured from the wire. Outer Vec
+    /// has length k_language_count, inner Vec has length string_count.
+    #[serde(skip)]
+    raw_offsets: Vec<Vec<u16>>,
+    /// Raw per-(language, string) exists flags.
+    #[serde(skip)]
+    raw_exists: Vec<Vec<bool>>,
 }
 
 impl<
@@ -159,10 +224,15 @@ c_string_table<
         }
 
         let mut offsets = vec![vec![0i16; string_count]; k_language_count];
+        self.raw_exists = vec![vec![false; string_count]; k_language_count];
+        self.raw_offsets = vec![vec![0u16; string_count]; k_language_count];
         for j in 0..string_count {
             for i in 0..k_language_count {
                 if bitstream.read_bool("exists")? {
-                    offsets[i][j] = bitstream.read_integer("index", offset_bit_length)?;
+                    let v: u16 = bitstream.read_integer("index", offset_bit_length)?;
+                    offsets[i][j] = v as i16;
+                    self.raw_exists[i][j] = true;
+                    self.raw_offsets[i][j] = v;
                 }
                 else {
                     offsets[i][j] = -1;
@@ -171,16 +241,22 @@ c_string_table<
         }
 
         let buffer_size: usize = bitstream.read_integer("size", buffer_size_bit_length)?;
+        self.raw_buffer_size = buffer_size as u32;
 
-        let string_data = if bitstream.read_bool("compressed")? {
-            let mut compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
+        let was_compressed = bitstream.read_bool("compressed")?;
+        self.raw_was_compressed = was_compressed;
+        let string_data = if was_compressed {
+            let compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
             let compressed_data = bitstream.read_raw_data(compressed_length * 8)?;
+            self.raw_string_data_bytes = compressed_data.clone();
             let mut decompressed_data = Vec::with_capacity(buffer_size);
 
             runtime_data_decompress(&compressed_data, &mut decompressed_data, bitstream.get_byte_order())?;
             decompressed_data
         } else {
-            bitstream.read_raw_data(buffer_size * 8)?
+            let raw = bitstream.read_raw_data(buffer_size * 8)?;
+            self.raw_string_data_bytes = raw.clone();
+            raw
         };
 
         for (language_index, language_offsets) in offsets.iter().enumerate() {
@@ -202,10 +278,39 @@ c_string_table<
     }
 
     pub fn encode(&self, bitstream: &mut c_bitstream_writer) -> BLFLibResult {
-        assert_ok!(self.strings[0].len() <= max_string_count);
+        {
+            let max_wire_count = (1u64 << count_bit_length) - 1;
+            assert_ok!((self.strings[0].len() as u64) <= max_wire_count);
+        }
         bitstream.write_integer(self.strings[0].len() as u32, count_bit_length)?;
 
         if self.strings[0].len() == 0 {
+            return Ok(());
+        }
+
+        let n = self.strings[0].len();
+        let have_raw = !self.raw_string_data_bytes.is_empty()
+            && self.raw_exists.len() == k_language_count
+            && self.raw_offsets.len() == k_language_count
+            && self.raw_exists.iter().all(|v| v.len() == n)
+            && self.raw_offsets.iter().all(|v| v.len() == n);
+        if have_raw {
+            for j in 0..n {
+                for i in 0..k_language_count {
+                    if self.raw_exists[i][j] {
+                        bitstream.write_bool(true)?;
+                        bitstream.write_integer(self.raw_offsets[i][j], offset_bit_length)?;
+                    } else {
+                        bitstream.write_bool(false)?;
+                    }
+                }
+            }
+            bitstream.write_integer(self.raw_buffer_size, buffer_size_bit_length)?;
+            bitstream.write_bool(self.raw_was_compressed)?;
+            if self.raw_was_compressed {
+                bitstream.write_integer(self.raw_string_data_bytes.len() as u32, buffer_size_bit_length)?;
+            }
+            bitstream.write_raw_data(self.raw_string_data_bytes.as_slice(), self.raw_string_data_bytes.len() * 8)?;
             return Ok(());
         }
 

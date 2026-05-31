@@ -1,14 +1,8 @@
-use std::u32;
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::binrw;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::wasm_bindgen;
-use blf_lib::blam::common::math::integer_math::{int16_point2d, int16_rectangle2d};
-use blf_lib::blam::common::math::real_math::{real_point3d, real_vector3d, real_plane3d, real_point2d, real_matrix4x3, real_vector2d, real_rectangle2d};
-use blf_lib::types::bool::Bool;
 use blf_lib::types::array::StaticArray;
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
-use blf_lib_derive::{BlfChunk, TestSize};
-use crate::types::numbers::Float32;
+use blf_lib_derive::BlfChunk;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 

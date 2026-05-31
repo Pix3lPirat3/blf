@@ -3,10 +3,10 @@ use std::cmp::min;
 use std::error::Error;
 use std::io::Cursor;
 use binrw::BinWrite;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::ToPrimitive;
 use widestring::U16CString;
 use blf_lib::{assert_ok, OPTION_TO_RESULT};
-use blf_lib::blam::common::math::real_math::{assert_valid_real_normal3d, cross_product3d, dot_product3d, k_real_epsilon, global_forward3d, global_left3d, global_up3d, normalize3d, valid_real_vector3d_axes3, arctangent, k_pi};
+use blf_lib::blam::common::math::real_math::{assert_valid_real_normal3d, cross_product3d, dot_product3d, k_real_epsilon, global_forward3d, global_left3d, normalize3d, valid_real_vector3d_axes3, arctangent};
 use blf_lib::io::bitstream::e_bitstream_byte_fill_direction;
 use blf_lib::io::bitstream::e_bitstream_byte_fill_direction::{_bitstream_byte_fill_direction_lsb_to_msb, _bitstream_byte_fill_direction_msb_to_lsb};
 use blf_lib_derivable::result::BLFLibResult;
@@ -87,7 +87,6 @@ impl c_bitstream_writer {
     pub fn get_current_offset(&self) -> (usize, usize) {
         (self.current_stream_byte_position, self.current_stream_bit_position)
     }
-
 
     // WRITES
 
@@ -402,6 +401,50 @@ impl c_bitstream_writer {
         Ok(())
     }
 
+    /// Round-trip-fidelity variant of `write_string_extended_ascii`. Emits
+    /// the raw byte sequence followed by a NUL terminator (same wire shape
+    /// as `write_string_extended_ascii`). The input bytes are NOT validated
+    /// against `max_string_size` or the Latin-1 range — they are taken to
+    /// be the literal on-wire bytes the reader captured. The caller must
+    /// have stripped the NUL terminator from `bytes` (the helper appends
+    /// its own terminator).
+    pub fn write_string_extended_ascii_raw(&mut self, bytes: &[u8]) -> BLFLibResult {
+        assert_ok!(self.writing());
+        for &byte in bytes {
+            self.write_value_internal(&[byte], 8)?;
+        }
+        self.write_value_internal(&0u8.to_ne_bytes(), 8)?;
+        Ok(())
+    }
+
+    /// Engine-equivalent of `bitwrite_ascii_zstring`. Mirrors
+    /// `read_string_extended_ascii_raw_bounded` exactly:
+    ///   - If `bytes.len() < max_string_size`: emit bytes + NUL terminator
+    ///     (total wire bytes = `bytes.len() + 1`).
+    ///   - If `bytes.len() == max_string_size`: emit bytes WITHOUT NUL
+    ///     (total wire bytes = `max_string_size`). The decoder hits the
+    ///     bounded-read cap and treats absence-of-NUL as "name took full
+    ///     buffer".
+    ///   - If `bytes.len() > max_string_size`: truncate at max and DO NOT
+    ///     emit NUL (defensive — engine never produces this case but we
+    ///     handle it gracefully).
+    pub fn write_string_extended_ascii_raw_bounded(
+        &mut self,
+        bytes: &[u8],
+        max_string_size: usize,
+    ) -> BLFLibResult {
+        assert_ok!(self.writing());
+        assert_ok!(max_string_size > 0);
+        let n = bytes.len().min(max_string_size);
+        for &byte in &bytes[..n] {
+            self.write_value_internal(&[byte], 8)?;
+        }
+        if n < max_string_size {
+            self.write_value_internal(&0u8.to_ne_bytes(), 8)?;
+        }
+        Ok(())
+    }
+
     pub fn write_string_wchar(&mut self, value: &String, max_string_size: usize) -> BLFLibResult {
         assert_ok!(self.writing());
         assert_ok!(max_string_size > 0);
@@ -425,6 +468,58 @@ impl c_bitstream_writer {
         // null terminate
         self.write_value_internal(&0u16.to_ne_bytes(), 16)?;
 
+        Ok(())
+    }
+
+    /// Round-trip-fidelity variant of `write_string_wchar`. Emits the raw
+    /// u16 sequence followed by a NUL terminator — preserves lone surrogate
+    /// halves and other content that `U16CString::from_str` would reject /
+    /// re-encode. Input must NOT include the NUL terminator (helper appends
+    /// its own). No max-size check; caller-supplied buffer is treated as
+    /// the literal on-wire payload the reader captured.
+    pub fn write_string_wchar_raw(&mut self, characters: &[u16]) -> BLFLibResult {
+        assert_ok!(self.writing());
+        for ch in characters {
+            match self.m_packed_byte_order {
+                e_bitstream_byte_order::_bitstream_byte_order_little_endian => {
+                    self.write_value_internal(&ch.to_le_bytes(), 16)?;
+                }
+                e_bitstream_byte_order::_bitstream_byte_order_big_endian => {
+                    self.write_value_internal(&ch.to_be_bytes(), 16)?;
+                }
+            }
+        }
+        self.write_value_internal(&0u16.to_ne_bytes(), 16)?;
+        Ok(())
+    }
+
+    /// Engine-equivalent of `bitwrite_utf16_zstring`. Mirrors
+    /// `read_string_wchar_raw_bounded`:
+    ///   - If `chars.len() < max_string_size`: emit chars + NUL terminator.
+    ///   - If `chars.len() == max_string_size`: emit chars WITHOUT NUL.
+    ///   - If `chars.len() > max_string_size`: truncate at max and DO NOT
+    ///     emit NUL.
+    pub fn write_string_wchar_raw_bounded(
+        &mut self,
+        characters: &[u16],
+        max_string_size: usize,
+    ) -> BLFLibResult {
+        assert_ok!(self.writing());
+        assert_ok!(max_string_size > 0);
+        let n = characters.len().min(max_string_size);
+        for ch in &characters[..n] {
+            match self.m_packed_byte_order {
+                e_bitstream_byte_order::_bitstream_byte_order_little_endian => {
+                    self.write_value_internal(&ch.to_le_bytes(), 16)?;
+                }
+                e_bitstream_byte_order::_bitstream_byte_order_big_endian => {
+                    self.write_value_internal(&ch.to_be_bytes(), 16)?;
+                }
+            }
+        }
+        if n < max_string_size {
+            self.write_value_internal(&0u16.to_ne_bytes(), 16)?;
+        }
         Ok(())
     }
 
@@ -471,8 +566,6 @@ impl c_bitstream_writer {
     pub fn writing(&self) -> bool {
         self.m_state == e_bitstream_state::_bitstream_state_writing
     }
-
-
 
     pub fn finish_writing(&mut self) {
         self.m_state = e_bitstream_state::_bitstream_state_write_finished;

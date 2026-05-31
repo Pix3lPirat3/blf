@@ -26,7 +26,9 @@ pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_hopper_configurat
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_game_set::*;
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_nag_message::*;
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_network_configuration::*;
-pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_map_variant::*;
+pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_map_variant::*;
+pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_halo4_map_variant::*;
+pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_halo2a_map_variant::*;
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_content_header::*;
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_dlc_map_manifest::*;
 pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_megalo_categories::*;
@@ -45,6 +47,8 @@ pub use haloreach::v12065_11_08_24_1738_tu1actual::s_blf_chunk_file_transfers::*
 
 pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_packed_game_variant::*;
 pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_game_variant::*;
+pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_halo4_game_variant::*;
+pub use haloreach_mcc::v_untracked_25_08_16_1352::s_blf_chunk_halo2a_game_variant::*;
 
 #[derive(TitleAndBuild)]
 #[Title("Halo: Reach")]

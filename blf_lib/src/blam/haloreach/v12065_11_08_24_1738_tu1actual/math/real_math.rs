@@ -1,6 +1,6 @@
 use std::cmp;
 use blf_lib::blam::common::math::integer_math::int32_point3d;
-use blf_lib::blam::common::math::real_math::{global_up3d, k_real_epsilon, real_point3d, real_rectangle3d};
+use blf_lib::blam::common::math::real_math::{global_up3d, real_point3d, real_rectangle3d};
 use blf_lib::blam::common::math::unit_vector_quanitzation::get_unit_vector_encoding_constants;
 use blf_lib::types::numbers::Float32;
 use blf_lib_derivable::result::BLFLibResult;
@@ -96,7 +96,7 @@ pub fn dequantize_real(
 {
     let min_value = min_value.into();
     let max_value = max_value.into();
-    let mut quantized_value_count = quantized_value_count as i32;
+    let quantized_value_count = quantized_value_count as i32;
 
     assert!(quantized_value_count >= 1);
     assert!(max_value > min_value);

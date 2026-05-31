@@ -12,11 +12,9 @@ use crate::types::c_string::StaticString;
 use blf_lib::types::time::{filetime};
 use blf_lib::types::bool::Bool;
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
-use blf_lib_derivable::result::BLFLibResult;
 use blf_lib_derive::{BlfChunk, TestSize};
 use crate::blf::versions::haloreach::v12065_11_08_24_1738_tu1actual::s_hopper_voting_configuration;
 use crate::io::bitstream::c_bitstream_writer;
-use crate::types::numbers::Float32;
 
 pub const k_hopper_maximum_category_count: usize = 16;
 pub const k_hopper_maximum_hopper_count: usize = 32;
@@ -46,7 +44,7 @@ impl BinRead for s_blf_chunk_hopper_configuration_table {
         // Now decompress.
         let compressed_length = bitstream.read_unnamed_integer::<usize>(14)? - 4; // this -4 is necessary, but idk why
         let decompressed_length = bitstream.read_unnamed_integer(32)?;
-        let compressed_hopper_table_data: Vec<u8> = bitstream.read_raw_data((compressed_length * 8))?;
+        let compressed_hopper_table_data: Vec<u8> = bitstream.read_raw_data(compressed_length * 8 )?;
         let mut decompressed_hopper_table_data: Vec<u8> = Vec::with_capacity(decompressed_length);
         let mut decoder = ZlibDecoder::new(Cursor::new(compressed_hopper_table_data));
         decoder.read_to_end(&mut decompressed_hopper_table_data)?;

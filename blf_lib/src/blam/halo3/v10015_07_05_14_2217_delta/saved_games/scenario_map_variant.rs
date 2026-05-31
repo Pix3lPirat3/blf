@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
 use blf_lib::TEST_BIT;
 use crate::blam::common::math::real_math::{real_point3d, real_rectangle3d};
-use crate::blam::halo3::v12070_08_09_05_2031_halo3_ship::saved_games::saved_game_files::s_content_item_metadata;
 use blf_lib::types::array::StaticArray;
 use crate::blam::common::math::real_math::real_vector3d;
 use crate::blam::halo3::v12070_08_09_05_2031_halo3_ship::simulation::simulation_encoding::{simulation_write_quantized_position};
@@ -11,9 +10,7 @@ use serde_hex::{SerHex,StrictCap};
 use blf_lib::blam::halo3::v12070_08_09_05_2031_halo3_ship::memory::bitstream_reader::c_bitstream_reader_extensions;
 use blf_lib::blam::halo3::v12070_08_09_05_2031_halo3_ship::simulation::simulation_encoding::simulation_read_quantized_position;
 use blf_lib::types::c_string::StaticWcharString;
-use blf_lib_derive::TestSize;
 use blf_lib_derivable::result::BLFLibResult;
-use crate::blam::halo3::v12070_08_09_05_2031_halo3_ship::memory::bitstream_writer::c_bitstream_writer_extensions;
 use crate::types::bool::Bool;
 use crate::types::numbers::Float32;
 
@@ -43,7 +40,7 @@ pub struct c_map_variant {
 }
 
 impl c_map_variant {
-    pub fn encode(&self, mut bitstream: &mut c_bitstream_writer) -> BLFLibResult {
+    pub fn encode(&self, bitstream: &mut c_bitstream_writer) -> BLFLibResult {
         bitstream.write_integer(self.m_map_variant_version as u32, 16)?;
         bitstream.write_string_wchar(&self.m_name.get_string(), 32)?;
         bitstream.write_string_wchar(&self.m_description.get_string(), 32)?;

@@ -1,5 +1,4 @@
-use std::io::{Read, Seek, Write};
-use binrw::{binrw, BinRead, BinResult, BinWrite, Endian};
+use binrw::binrw;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};

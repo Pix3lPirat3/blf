@@ -1,4 +1,3 @@
-use binrw::{BinRead, BinWrite};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -14,7 +13,6 @@ use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::game_engine_
 use blf_lib::blam::haloreach::v12065_11_08_24_1738_tu1actual::saved_games::scenario_map_variant::e_boundary_shape;
 use blf_lib::bitfield;
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
-use blf_lib::OPTION_TO_RESULT;
 use blf_lib_derivable::result::{BLFLibError, BLFLibResult};
 use crate::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::megalogamengine::megalogamengine_custom_variable_reference::c_custom_variable_reference;
 use crate::blam::haloreach::v12065_11_08_24_1738_tu1actual::game::megalogamengine::megalogamengine_object_reference::c_object_reference;

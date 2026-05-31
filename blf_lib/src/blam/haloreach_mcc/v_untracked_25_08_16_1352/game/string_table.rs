@@ -68,7 +68,7 @@ c_single_language_string_table<
         let buffer_size: usize = bitstream.read_integer("size", buffer_size_bit_length)?;
 
         let string_data = if bitstream.read_bool("compressed")? {
-            let mut compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
+            let compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
             let compressed_data = bitstream.read_raw_data(compressed_length * 8)?;
             let mut decompressed_data = Vec::with_capacity(buffer_size);
 
@@ -90,7 +90,8 @@ c_single_language_string_table<
     }
 
     pub fn encode(&self, bitstream: &mut c_bitstream_writer) -> BLFLibResult {
-        assert_ok!(self.strings.len() <= max_string_count);
+        let max_wire_count = (1u64 << count_bit_length) - 1;
+        assert_ok!((self.strings.len() as u64) <= max_wire_count);
         bitstream.write_integer(self.strings.len() as u32, count_bit_length)?;
 
         if self.strings.len() == 0 {
@@ -122,7 +123,6 @@ c_single_language_string_table<
         Ok(())
     }
 }
-
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct c_string_table<
@@ -173,7 +173,7 @@ c_string_table<
         let buffer_size: usize = bitstream.read_integer("size", buffer_size_bit_length)?;
 
         let string_data = if bitstream.read_bool("compressed")? {
-            let mut compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
+            let compressed_length: usize = bitstream.read_integer("compressed-buffer-size", buffer_size_bit_length)?;
             let compressed_data = bitstream.read_raw_data(compressed_length * 8)?;
             let mut decompressed_data = Vec::with_capacity(buffer_size);
 
@@ -202,7 +202,8 @@ c_string_table<
     }
 
     pub fn encode(&self, bitstream: &mut c_bitstream_writer) -> BLFLibResult {
-        assert_ok!(self.strings[0].len() <= max_string_count);
+        let max_wire_count = (1u64 << count_bit_length) - 1;
+        assert_ok!((self.strings[0].len() as u64) <= max_wire_count);
         bitstream.write_integer(self.strings[0].len() as u32, count_bit_length)?;
 
         if self.strings[0].len() == 0 {

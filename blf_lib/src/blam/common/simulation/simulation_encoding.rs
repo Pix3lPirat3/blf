@@ -1,10 +1,6 @@
 use std::cmp::min;
-use num_traits::real::Real;
 use blf_lib::blam::common::math::integer_math::int32_point3d;
 use blf_lib::blam::common::math::real_math::{real_point3d, real_rectangle3d};
-use blf_lib_derivable::result::{BLFLibError, BLFLibResult};
-use crate::io::bitstream::c_bitstream_writer;
-use crate::blam::common::math::real_math::point_in_rectangle3d;
 
 const k_world_units_to_inches: f32 = 10.0f32 * 12.0f32;
 const k_inches_to_world_units: f32 = 1.0f32 / k_world_units_to_inches;

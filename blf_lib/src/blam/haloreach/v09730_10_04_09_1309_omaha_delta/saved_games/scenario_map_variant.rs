@@ -3,7 +3,7 @@ use binrw::{BinRead, BinWrite};
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer};
-use blf_lib::{assert_ok, OPTION_TO_RESULT, TEST_BIT};
+use blf_lib::OPTION_TO_RESULT;
 use crate::blam::common::math::real_math::{real_point3d, real_rectangle3d};
 use blf_lib::types::array::StaticArray;
 use crate::blam::common::math::real_math::real_vector3d;

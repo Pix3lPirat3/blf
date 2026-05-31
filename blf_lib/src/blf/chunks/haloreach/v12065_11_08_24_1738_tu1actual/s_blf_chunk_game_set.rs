@@ -1,8 +1,5 @@
 use std::io::{Cursor, Read, Seek, Write};
 use binrw::{binrw, BinRead, BinResult, BinWrite, BinWriterExt, Endian};
-use flate2::{Compress, Compression};
-use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
 use serde::{Deserialize, Serialize};
 use blf_lib::blam::common::memory::data_compress::runtime_data_compress;
 use blf_lib::blam::common::memory::secure_signature::s_network_http_request_hash;
@@ -10,7 +7,6 @@ use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer, e_bitstream
 use blf_lib::types::array::StaticArray;
 use crate::types::c_string::StaticString;
 use blf_lib::types::bool::Bool;
-use blf_lib::types::c_string::StaticWcharString;
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
 use blf_lib_derivable::result::BLFLibResult;
 use blf_lib_derive::BlfChunk;

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use blf_lib::io::bitstream::{c_bitstream_reader, c_bitstream_writer, e_bitstream_byte_order};
 use blf_lib::types::array::StaticArray;
 use crate::types::c_string::StaticString;
-use blf_lib::types::time::{filetime, time32_t};
+use blf_lib::types::time::time32_t;
 use serde_hex::{SerHex,StrictCap};
 use blf_lib_derivable::blf::chunks::BlfChunkHooks;
 use blf_lib_derive::BlfChunk;

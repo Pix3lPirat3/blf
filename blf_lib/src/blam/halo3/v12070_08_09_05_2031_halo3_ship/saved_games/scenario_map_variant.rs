@@ -154,7 +154,9 @@ impl c_map_variant {
         self.m_maximum_budget = bitstream.read_unnamed_float(32)?;
         self.m_spent_budget = bitstream.read_unnamed_float(32)?;
 
-        for i in 0..self.m_number_of_variant_objects as usize {
+        let n_objs = (self.m_number_of_variant_objects as usize).min(640);
+        let n_quotas = (self.m_number_of_placeable_object_quotas as usize).min(256);
+        for i in 0..n_objs {
             let variant_object = &mut self.m_variant_objects.get_mut()[i];
 
             if !bitstream.read_unnamed_bool()? {
@@ -206,7 +208,7 @@ impl c_map_variant {
             self.m_object_type_start_index.get_mut()[i] = bitstream.read_unnamed_integer::<i16>(9)? - 1;
         }
 
-        for i in 0..self.m_number_of_placeable_object_quotas as usize {
+        for i in 0..n_quotas {
             let object_quota = &mut self.m_quotas.get_mut()[i];
             object_quota.object_definition_index = bitstream.read_unnamed_integer(32)?;
             object_quota.minimum_count = bitstream.read_unnamed_integer(8)?;

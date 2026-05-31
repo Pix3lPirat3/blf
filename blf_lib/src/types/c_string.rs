@@ -100,6 +100,18 @@ impl<const N: usize> StaticWcharString<N> {
         Ok(new)
     }
 
+    /// Lossy variant: silently truncates the input to fit, instead of erroring.
+    /// Used for corpus mvars where modded title/description fields encode chars
+    /// whose UTF-16 expansion (incl. surrogate pairs) overshoots the N-wchar
+    /// fixed buffer.
+    pub fn from_string_trimmed(value: impl Into<String>) -> BLFLibResult<Self> {
+        let mut new = Self {
+            buf: StaticArray::default()
+        };
+        new.set_string_trimmed(&value.into())?;
+        Ok(new)
+    }
+
     pub fn set_string(&mut self, value: &String) -> BLFLibResult {
         let u16Str = U16CString::from_str(value).map_err(|e|e.to_string())?;
         let u16s = u16Str.as_slice();
@@ -117,7 +129,8 @@ impl<const N: usize> StaticWcharString<N> {
         let u16s = u16Str.as_slice();
         let buf = self.buf.get_mut();
         buf.fill(0);
-        buf[0..min(u16s.len(), N - 1)].copy_from_slice(u16s);
+        let count = min(u16s.len(), N - 1);
+        buf[0..count].copy_from_slice(&u16s[0..count]);
 
         Ok(())
     }
@@ -127,7 +140,8 @@ impl<const N: usize> StaticWcharString<N> {
         let u16s = u16Str.as_slice();
         let buf = self.buf.get_mut();
         buf.fill(0);
-        buf[0..min(u16s.len(), N - 1)].copy_from_slice(u16s);
+        let count = min(u16s.len(), N - 1);
+        buf[0..count].copy_from_slice(&u16s[0..count]);
     }
 
     pub fn get_string(&self) -> String {
@@ -183,32 +197,32 @@ impl<const N: usize> StaticString<N> {
     }
 
     pub fn set_string(&mut self, value: &String) -> BLFLibResult {
-        let mut bytes = value.as_bytes();
-        // if a null termination was provided at the end, chop it off
-        if !bytes.is_empty() && bytes[bytes.len() - 1] == 0 {
-            bytes = &bytes[0..bytes.len() - 1];
+        let raw: Vec<u8> = value.chars().map(|c| c as u8).collect();
+        let mut slice: &[u8] = &raw;
+        if !slice.is_empty() && slice[slice.len() - 1] == 0 {
+            slice = &slice[0..slice.len() - 1];
         }
-        if bytes.len() > N {
-            return Err(format!("String \"{value}\" too long ({} > {}) bytes", bytes.len(), N).into());
+        if slice.len() > N {
+            return Err(format!("String \"{value}\" too long ({} > {}) bytes", slice.len(), N).into());
         }
         self.buf.fill(0);
-        self.buf[..bytes.len()].copy_from_slice(bytes);
+        self.buf[..slice.len()].copy_from_slice(slice);
         Ok(())
     }
 
     pub fn set_string_trimmed(&mut self, value: &String) {
-        let mut bytes = value.as_bytes();
-        // if a null termination was provided at the end, chop it off
-        if !bytes.is_empty() && bytes[bytes.len() - 1] == 0 {
-            bytes = &bytes[0..bytes.len() - 1];
+        let raw: Vec<u8> = value.chars().map(|c| c as u8).collect();
+        let mut slice: &[u8] = &raw;
+        if !slice.is_empty() && slice[slice.len() - 1] == 0 {
+            slice = &slice[0..slice.len() - 1];
         }
         self.buf.fill(0);
-        self.buf[..min(bytes.len(), N - 1)].copy_from_slice(&bytes[..min(bytes.len(), N - 1)]);
+        self.buf[..min(slice.len(), N - 1)].copy_from_slice(&slice[..min(slice.len(), N - 1)]);
     }
 
     pub fn get_string(&self) -> BLFLibResult<String> {
         let null_index = self.buf.iter().position(|c|c == &0u8).unwrap_or(N);
-        Ok(String::from_utf8(self.buf.as_slice()[0..null_index].to_vec())?)
+        Ok(self.buf[..null_index].iter().map(|&b| b as char).collect())
     }
 
     pub unsafe fn get_string_unchecked(&self) -> String {
@@ -287,7 +301,6 @@ impl<const N: usize> napi::bindgen_prelude::FromNapiMutRef for StaticString<N> {
     }
 }
 
-
 #[cfg(feature = "napi")]
 impl<const N: usize> ToNapiValue for &mut StaticString<N> {
     unsafe fn to_napi_value(env: napi_env, val: Self) -> napi::Result<napi_value> {
@@ -296,7 +309,6 @@ impl<const N: usize> ToNapiValue for &mut StaticString<N> {
         Env::from_raw(env).create_string(&s).map(|js_str| js_str.raw())
     }
 }
-
 
 // TODO: Refactor
 #[cfg(feature = "napi")]
@@ -322,7 +334,6 @@ impl<const N: usize> napi::bindgen_prelude::FromNapiMutRef for StaticWcharString
         Ok(&mut *(wrapped_val as *mut StaticWcharString<N>))
     }
 }
-
 
 #[cfg(feature = "napi")]
 impl<const N: usize> ToNapiValue for &mut StaticWcharString<N> {

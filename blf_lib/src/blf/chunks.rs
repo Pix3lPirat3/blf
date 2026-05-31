@@ -10,12 +10,11 @@ use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::{Cursor, Read, Seek};
-use binrw::BinReaderExt;
 use serde::Deserialize;
 use blf_lib::BINRW_RESULT;
 use blf_lib::blf::s_blf_header;
 pub use blf_lib_derivable::blf::chunks::*;
-use blf_lib_derivable::result::{BLFLibError, BLFLibResult};
+use blf_lib_derivable::result::BLFLibResult;
 use blf_lib_derivable::types::chunk_signature::chunk_signature;
 use crate::blf::versions::halo3::v12070_08_09_05_2031_halo3_ship::{s_blf_chunk_end_of_file, s_blf_chunk_end_of_file_with_sha1, s_blf_chunk_end_of_file_with_rsa, s_blf_chunk_end_of_file_with_crc};
 
@@ -38,7 +37,7 @@ pub fn find_and_validate_eof(buffer: &[u8]) -> BLFLibResult {
         if header.signature == chunk_signature::from_string("_eof") && header.version.major == 1 {
             cursor.read_exact(body_bytes.as_mut_slice())?;
             let authentication_type: u8 = body_bytes[4];
-            let mut chunk_position = (cursor.position() as usize) - (body_bytes.len() + s_blf_header::size());
+            let chunk_position = (cursor.position() as usize) - (body_bytes.len() + s_blf_header::size());
 
             match authentication_type {
                 0 => { s_blf_chunk_end_of_file::read(body_bytes.clone(), Some(header.clone()), &buffer[0..chunk_position])?; }

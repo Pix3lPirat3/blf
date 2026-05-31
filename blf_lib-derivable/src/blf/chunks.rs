@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::error::Error;
 use binrw::{BinRead, BinWrite, BinWriterExt};
 use crate::blf::s_blf_header::s_blf_header;
 use crate::result::BLFLibResult;
